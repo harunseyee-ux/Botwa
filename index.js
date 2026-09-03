@@ -27,7 +27,7 @@ process.on("unhandledRejection", (err) => {
 process.on("uncaughtException", (err) => {
   console.error("⚠️ uncaughtException (diabaikan biar bot ga mati):", err);
 });
- = { ownerNumber: "", prefix: ".", defaultIntervalMinutes: 1, loginMethod: "" };
+const DEFAULT_CONFIG = { ownerNumber: "", prefix: ".", defaultIntervalMinutes: 1, loginMethod: "" };
 let config = DEFAULT_CONFIG;
 try {
   config = { ...DEFAULT_CONFIG, ...JSON.parse(fs.readFileSync("./config.json", "utf-8")) };
