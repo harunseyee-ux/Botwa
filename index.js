@@ -195,6 +195,13 @@ function toRuntimeContent(saved) {
 }
 
 async function startBot() {
+  // Set env CLEAR_SESSION=true (sekali aja) kalau mau paksa hapus session lama & pairing/scan dari nol.
+  // Setelah berhasil login, HAPUS LAGI env ini biar session baru ga ke-reset tiap redeploy.
+  if (process.env.CLEAR_SESSION === "true" && fs.existsSync("./session")) {
+    fs.rmSync("./session", { recursive: true, force: true });
+    console.log("🗑️ CLEAR_SESSION aktif: folder session lama dihapus, bakal minta login baru.");
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState("./session");
 
   let LOGIN_METHOD = "qr";
