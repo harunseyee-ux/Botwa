@@ -18,7 +18,16 @@ try {
 } catch {
   // sengaja diem, dicek pas .qc dipanggil
 }
-const DEFAULT_CONFIG = { ownerNumber: "", prefix: ".", defaultIntervalMinutes: 1, loginMethod: "" };
+// ---------- safety net: cegah proses mati total gara-gara error nggak ketangkep ----------
+// (dulu ini nyebabin container Railway restart tiap ada error kecil di auto-bc/jadwal,
+//  dan restart mendadak itu yang bikin sesi WA sering keputus/logout paksa)
+process.on("unhandledRejection", (err) => {
+  console.error("⚠️ unhandledRejection (diabaikan biar bot ga mati):", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("⚠️ uncaughtException (diabaikan biar bot ga mati):", err);
+});
+ = { ownerNumber: "", prefix: ".", defaultIntervalMinutes: 1, loginMethod: "" };
 let config = DEFAULT_CONFIG;
 try {
   config = { ...DEFAULT_CONFIG, ...JSON.parse(fs.readFileSync("./config.json", "utf-8")) };
@@ -535,9 +544,13 @@ function startBroadcastInterval(sock, minutes, savedContent, notify, jid, loadin
   const ms = Math.max(minutes, 0.1) * 60 * 1000;
 
   intervalHandle = setInterval(async () => {
-    const ids = getTargetGroupIds();
-    const { sent, failed } = await doBroadcast(sock, content, ids);
-    console.log(`[auto-bc] terkirim ke ${sent}/${ids.length} grup${failed ? ` (${failed} gagal)` : ""}`);
+    try {
+      const ids = getTargetGroupIds();
+      const { sent, failed } = await doBroadcast(sock, content, ids);
+      console.log(`[auto-bc] terkirim ke ${sent}/${ids.length} grup${failed ? ` (${failed} gagal)` : ""}`);
+    } catch (e) {
+      console.error("[auto-bc] gagal jalan, dilewatin siklus ini:", e.message);
+    }
   }, ms);
 
   if (notify && jid) {
@@ -989,11 +1002,15 @@ function startScheduleChecker(sock) {
       if (scheduleFiredKeys[fireKey]) continue;
       scheduleFiredKeys[fireKey] = true;
 
-      const ids = getTargetGroupIds();
-      if (ids.length === 0) continue;
-      const runtimeContent = toRuntimeContent(sch.content);
-      const { sent, failed } = await doBroadcast(sock, runtimeContent, ids);
-      console.log(`[jadwal] ${sch.id} (${sch.time}) terkirim ke ${sent}/${ids.length} grup${failed ? ` (${failed} gagal)` : ""}`);
+      try {
+        const ids = getTargetGroupIds();
+        if (ids.length === 0) continue;
+        const runtimeContent = toRuntimeContent(sch.content);
+        const { sent, failed } = await doBroadcast(sock, runtimeContent, ids);
+        console.log(`[jadwal] ${sch.id} (${sch.time}) terkirim ke ${sent}/${ids.length} grup${failed ? ` (${failed} gagal)` : ""}`);
+      } catch (e) {
+        console.error(`[jadwal] ${sch.id} gagal jalan, dilewatin:`, e.message);
+      }
     }
   }, 20000); // cek tiap 20 detik
 }
